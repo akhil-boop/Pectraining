@@ -1,24 +1,13 @@
 /**
  * Tangience Engineering Hub — Claude API Proxy
- * Vercel Serverless Function: /api/claude
+ * Vercel Serverless Function: /api/claude.js
  *
- * This function forwards requests from the browser to the Anthropic API,
- * keeping the API key secure on the server side.
- *
- * Setup:
- *   1. Deploy this project to Vercel
- *   2. In Vercel dashboard → Settings → Environment Variables
- *      Add: ANTHROPIC_API_KEY = sk-ant-xxxx...
- *   3. Redeploy — the proxy will work automatically
+ * Forwards requests to Anthropic API with the server-side API key.
+ * Set ANTHROPIC_API_KEY in Vercel → Settings → Environment Variables
  */
 
-export default async function handler(req, res) {
-  // Only allow POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // CORS headers — allow requests from your Vercel deployment
+module.exports = async function handler(req, res) {
+  // CORS preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -27,12 +16,16 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: { message: 'Method not allowed' } });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
       error: {
-        message: 'ANTHROPIC_API_KEY environment variable is not set. ' +
-                 'Add it in Vercel dashboard → Settings → Environment Variables.'
+        message: 'ANTHROPIC_API_KEY is not set. Go to Vercel dashboard → ' +
+                 'Your project → Settings → Environment Variables → Add ANTHROPIC_API_KEY'
       }
     });
   }
@@ -49,16 +42,12 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-
-    // Forward the response status and body to the client
     return res.status(response.status).json(data);
 
   } catch (err) {
     console.error('Claude proxy error:', err);
     return res.status(500).json({
-      error: {
-        message: 'Proxy error: ' + err.message
-      }
+      error: { message: 'Proxy error: ' + err.message }
     });
   }
-}
+};
